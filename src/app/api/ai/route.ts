@@ -1,26 +1,6 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
-import https from 'https';
-import dns from 'dns';
 
-// Force le runtime Node.js pour supporter les bibliothèques réseau (dns, https)
 export const runtime = 'nodejs';
-
-// Configuration du résolveur DNS pour contourner les blocages réseau
-const customResolver = new dns.Resolver();
-customResolver.setServers(['1.1.1.1', '8.8.8.8']);
-
-const dnsBypassLookup = (hostname: string, options: any, callback: any) => {
-  customResolver.resolve4(hostname, (err, addresses) => {
-    if (err) return dns.lookup(hostname, options, callback);
-    callback(null, addresses[0], 4);
-  });
-};
-
-const bypassAgent = new https.Agent({
-  lookup: dnsBypassLookup,
-  rejectUnauthorized: false
-});
 
 export async function POST(req: Request) {
   try {
@@ -31,12 +11,8 @@ export async function POST(req: Request) {
     }
 
     const token = process.env.HF_API_TOKEN;
-    if (!token) {
-      console.error("HF_API_TOKEN manquant dans les variables d'environnement Vercel !");
-      return NextResponse.json({ error: "Configuration serveur manquante" }, { status: 500 });
-    }
-
-    // Préparation des données
+    
+    // Conversion base64 vers buffer
     const base64Image = image.replace(/^data:image\/\w+;base64,/, "");
     const base64Mask = mask.replace(/^data:image\/\w+;base64,/, "");
     
@@ -45,25 +21,28 @@ export async function POST(req: Request) {
     formData.append("image", new Blob([Buffer.from(base64Image, 'base64')], { type: "image/png" }), "image.png");
     formData.append("mask_image", new Blob([Buffer.from(base64Mask, 'base64')], { type: "image/png" }), "mask.png");
 
-    // Appel Hugging Face
-    const response = await axios.post(
+    // Utilisation de fetch natif (plus stable sur Vercel)
+    const response = await fetch(
       "https://api-inference.huggingface.co/models/OzzyGT/Realistic_Vision_V5.1_Inpainting",
-      formData,
       {
-        headers: { Authorization: `Bearer ${token.trim()}` },
-        responseType: 'arraybuffer',
-        httpsAgent: bypassAgent,
-        timeout: 60000 
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       }
     );
 
-    const outputBase64 = `data:image/jpeg;base64,${Buffer.from(response.data).toString('base64')}`;
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(`HuggingFace error: ${errorData}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const outputBase64 = `data:image/jpeg;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
     
     return NextResponse.json({ output: outputBase64 });
 
   } catch (error: any) {
-    console.error("Erreur API:", error.message);
-    // On renvoie un JSON, jamais de HTML, pour que le Frontend puisse traiter l'erreur
+    console.error("Erreur API détaillée:", error.message);
     return NextResponse.json(
       { error: "Échec de la génération IA" }, 
       { status: 500 }
