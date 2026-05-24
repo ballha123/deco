@@ -16,7 +16,7 @@ const maskBuffer = Buffer.from(mask.split(",")[1], 'base64');
     // Appel via le SDK officiel
    const result = await hf.imageToImage({
   // Remplace le modèle par celui-ci, plus susceptible de fonctionner en gratuit :
-model: "stabilityai/stable-diffusion-2-inpainting",
+model: "runwayml/stable-diffusion-inpainting",
   inputs: new Blob([imgBuffer], { type: "image/png" }), // Conversion explicite en Blob
   parameters: {
     mask_image: new Blob([maskBuffer], { type: "image/png" }), // Conversion explicite en Blob
