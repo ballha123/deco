@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 const maskBuffer = Buffer.from(mask.split(",")[1], 'base64');
     // Appel via le SDK officiel
    const result = await hf.imageToImage({
-  model: "OzzyGT/Realistic_Vision_V5.1_Inpainting",
+  model: "runwayml/stable-diffusion-inpainting",
   inputs: new Blob([imgBuffer], { type: "image/png" }), // Conversion explicite en Blob
   parameters: {
     mask_image: new Blob([maskBuffer], { type: "image/png" }), // Conversion explicite en Blob
